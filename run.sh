@@ -5,9 +5,12 @@ PYTHON=python3 # ~/Desktop/Python-3.5.1/install/bin/python3
 
 rm -r __pycache__
 if [ $1 = 'e' ]; then
-  $PYTHON mix_exp.py
+  # $PYTHON mix_exp.py
+  $PYTHON intersection_exp.py
 elif [ $1 = 'r' ]; then
   $PYTHON randmix_model.py
+elif [ $1 = 'i' ]; then
+  $PYTHON intersection_sim.py
 else
   echo "Argument did not match!"
 fi
