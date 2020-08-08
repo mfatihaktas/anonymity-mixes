@@ -1,1 +1,0 @@
-mehmet@mehmet-ThinkPad.26177:1596550605
