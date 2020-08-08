@@ -16,12 +16,13 @@ class Msg(object):
 
 # *************************************  MsgGen  ********************************* #
 class MsgGen(object):
-	def __init__(self, env, _id, ar, nflows, out=None):
+	def __init__(self, env, _id, ar, nflows, out, generator=None):
 		self.env = env
 		self._id = _id
 		self.ar = ar
 		self.nflows = nflows
 		self.out = out
+		self.generator = generator
 
 		self.counter = 0
 
@@ -35,7 +36,12 @@ class MsgGen(object):
 		while 1:
 			yield self.env.timeout(inter_arr_rv.sample() )
 			self.counter += 1
-			self.out.put(Msg(_id=self.counter, flow_id=random.randint(0, self.nflows-1) ) )
+			
+			if self.generator is None:
+			  m = Msg(_id=self.counter, flow_id=random.randint(0, self.nflows-1) )
+			else:
+				m = self.generator(_id=self.counter, flow_id=random.randint(0, self.nflows-1) )
+			self.out.put(m)
 
 # *****************************************  Q  ************************************* #
 class Q(object):
@@ -101,3 +107,42 @@ class SlaveQ(Q): # Release HoL at command
 
 			if self.out is not None:
 				self.out.put(m)
+
+# **************************************  Slave Q  ********************************** #
+class Mix(object):
+	def __init__(self, env, _id, n, k):
+		self.env = env
+		self._id = _id
+		self.n = n
+		self.k = k
+
+		self.i_q_l = []
+		for i in range(self.n):
+			self.i_q_l.append(SlaveQ(_id=i, env=env) )
+
+		self.start_time = env.now
+
+	def __repr__(self):
+		return "Mix[_id= {}, n={}, k={}]".format(self._id, self.n, self.k)
+
+	def state(self):
+		ql_l = [self.i_q_l[i].length() for i in range(self.n) ]
+		return ','.join(map(str, ql_l) )
+
+	def qt_l(self):
+		l = []
+		for q in self.i_q_l:
+			l.extend(q.qt_l)
+		return l
+
+	def ET_ET2(self):
+		ET_l, ET2_l = [], []
+		for q in self.i_q_l:
+			ET_l.append(q.Eqt() )
+			ET2_l.append(q.Eqt2() )
+		return np.mean(ET_l), np.mean(ET2_l)
+
+	def throughput(self):
+		n_released = sum([q.n_released for _, q in enumerate(self.i_q_l) ] )
+		return n_released/(self.env.now - self.start_time)
+

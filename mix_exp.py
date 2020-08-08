@@ -42,7 +42,7 @@ def plot_batchmix_EQt_vs_k():
   log(WARNING, "done; n= {}".format(n) )
 
 def plot_batch_vs_samplek_mix():
-  n = 100
+  n = 10 # 100
 
   def plot_EQt_vs_k(ar):
     k_l, ET_bm_l, ET_tsm_l = [], [], []

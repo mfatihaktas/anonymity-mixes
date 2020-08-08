@@ -1,31 +1,42 @@
+from log_utils import *
+from plot_utils import *
+from sim_objs import *
 from intersection_sim import *
 
-def plot_EN_vs_k(n):
-	k_l, EN_sim_random_l, EN_sim_BatchMix_l = [], [], []
+def plot_EN_vs_Delta_in_TimeMix():
+	def plot_(n):
+		log(INFO, ">> n= {}".format(n) )
+		Delta_l = []
+		EN_sim_l = []
+		for Delta in np.linspace(1, 25, 5):
+			print("Delta= {}".format(Delta) )
+			Delta_l.append(Delta)
 
-	for k in range(2, n, 2):
-		print("k= {}".format(k))
+			T = TPareto(0.1, Delta, 1)
+			EN_sim = sim_EN_TimeMix(n, T, num_sim_runs=1000)
+			print("EN_sim= {}".format(EN_sim))
+			EN_sim_l.append(EN_sim)
 
-		EN_sim_random = sim_EN(n, k, mix_type='random', num_sim_runs=1000)
-		print("  EN_sim_random= {}".format(EN_sim_random))
-		EN_sim_BatchMix = sim_EN(n, k, mix_type='batch', num_sim_runs=1000)
-		print("  EN_sim_BatchMix= {}".format(EN_sim_BatchMix))
+		c = next(darkcolor_c)
+		plot.plot(Delta_l, EN_sim_l, label=r'$n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
+		# plot.yscale('log')
 
-		k_l.append(k)
-		EN_sim_random_l.append(EN_sim_random)
-		EN_sim_BatchMix_l.append(EN_sim_BatchMix)
-	plot.plot(k_l, EN_sim_random_l, label=r'Random', color=next(darkcolor_c), marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
-	plot.plot(k_l, EN_sim_BatchMix_l, label=r'Batch', color=next(darkcolor_c), marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
-	plot.yscale('log')
-
+	for n in range(10, 50, 10):
+		plot_(n)
+	
 	plot.legend()
-	plot.xlabel(r'$k$', fontsize=14)
+	plot.xlabel(r'$\Delta$', fontsize=14)
 	plot.ylabel(r'$E[N]$', fontsize=14)
-	plot.title(r'$n= {}$'.format(n) )
+	plot.title(r'Time-Mix')
 	plot.gcf().set_size_inches(6, 5)
-	plot.savefig("plot_EN_vs_k_n={}.pdf".format(n), bbox_inches='tight')
-	log(WARNING, "done; n= {}".format(n) )
+	plot.savefig("plot_EN_vs_Delta_in_TimeMix.pdf", bbox_inches='tight')
+	log(WARNING, "done.")
 
 if __name__ == "__main__":
-	n = 50
-	plot_EN_vs_k(n)
+	plot_EN_vs_Delta_in_TimeMix()
+
+	# n = 10
+	# T = TPareto(0.1, 5, 2)
+	# EN_sim = sim_EN_TimeMix(n, T, num_sim_runs=1)
+	# print("EN_sim= {}".format(EN_sim))
+

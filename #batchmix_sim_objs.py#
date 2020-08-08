@@ -88,3 +88,41 @@ class True_SamplekMix(BatchMix):
 		slog(DEBUG, self.env, self, "will release q's:", i_l)
 		for i in i_l:
 			self.i_q_l[i].release()
+
+# ***********************************  IntersectionAttack  ******************************* #
+"""
+Treat the participants as n bins.
+For each observed participant, place a ball in its corresponding bin.
+Target is revealed as soon as the height of a bin is greater than the rest.
+"""
+class IntersectionAttack(object):
+	def __init__(self, n, k, target_i=0):
+		self.n = n
+		self.k = k
+		self.target_i = target_i
+
+		self.bin_l = [0 for _ in range(n)]
+		self.second_max_bin_height = 0 # target_bin will always have the max height
+
+	def __repr__(self):
+		return 'IntersectionAttack[n={}, k={}]'.format(self.n, self.k)
+
+	def state(self):
+		return 'target_bin= {}, second_max_bin_height= {}'.format(self.bin_l[self.target_i], self.second_max_bin_height)
+
+	def get_candidate_l(self):
+		l = [0]
+		for i in range(1, n):
+			if self.bin_l[i] == self.bin_l[self.target_i]:
+				l.append(i)
+		return l
+
+	def batch(self, i_l):
+		for i in i_l:
+			self.bin_l[i] += 1
+			if i != self.target_i:
+				if self.bin_l[i] > self.second_max_bin_height:
+					self.second_max_bin_height = self.bin_l[i]
+
+	def is_complete(self):
+		return self.bin_l[self.target_i] > self.second_max_bin_height;

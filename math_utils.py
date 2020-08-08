@@ -29,15 +29,15 @@ def gen_H(n, k):
     sum_ += float(1/(i*(i - k) ) )
   return sum_
 
-def binom(n, k):
-  return scipy.special.binom(n, k)
+# def C(n, k):
+#   return scipy.special.binom(n, k)
 
-# def binom(x, y):
-#   try:
-#     binom = factorial(x) // factorial(y) // factorial(x - y)
-#   except ValueError:
-#     binom = 0
-#   return binom
+def C(x, y):
+  try:
+    binom = math.factorial(x) // math.factorial(y) // math.factorial(x - y)
+  except ValueError:
+    binom = 0
+  return binom
 
 def I(u_l, m, n):
   # den = B(m, n)
@@ -61,7 +61,7 @@ def G(z):
 def cdf_n_k(n, k, X, x): # Pr{X_n:k < x}
   cdf = 0
   for i in range(k, n+1):
-    cdf += binom(n, i) * X.cdf(x)**i * X.tail(x)**(n-i)
+    cdf += C(n, i) * X.cdf(x)**i * X.tail(x)**(n-i)
   return cdf
 
 def moment_i_n_k(i, n, k, X): # E[X_n:k]
@@ -147,8 +147,11 @@ def fit_sexp(s_l):
   return D, mu
 
 if __name__ == "__main__":
-  a = 2
-  f = lambda k: G(1 - 1/a)**(-a/2)/math.sqrt(k+1)
+  # a = 2
+  # f = lambda k: G(1 - 1/a)**(-a/2)/math.sqrt(k+1)
+  # print("f(10)= {}".format(f(10) ) )
+  # print("f(100)= {}".format(f(100) ) )
   
-  print("f(10)= {}".format(f(10) ) )
-  print("f(100)= {}".format(f(100) ) )
+  n = 10
+  for k in range(2*n):
+    print("n= {}, k= {}, C(n, k)= {}".format(n, k, C(n, k) ) )
