@@ -8,7 +8,7 @@ def plot_EN_vs_Delta_in_TimeMix():
 		log(INFO, ">> n= {}".format(n) )
 		Delta_l = []
 		EN_sim_l = []
-		for Delta in np.linspace(1, 25, 5):
+		for Delta in np.linspace(1, 5, 5):
 			print("Delta= {}".format(Delta) )
 			Delta_l.append(Delta)
 
@@ -21,10 +21,10 @@ def plot_EN_vs_Delta_in_TimeMix():
 		plot.plot(Delta_l, EN_sim_l, label=r'$n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
 		# plot.yscale('log')
 
-	for n in range(10, 50, 10):
-		plot_(n)
-	
-	plot.legend()
+	for n in range(10, 40, 10):
+    plot_(n)
+  
+  plot.legend()
 	plot.xlabel(r'$\Delta$', fontsize=14)
 	plot.ylabel(r'$E[N]$', fontsize=14)
 	plot.title(r'Time-Mix')
