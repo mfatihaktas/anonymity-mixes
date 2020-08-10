@@ -1,8 +1,8 @@
 from log_utils import *
 from plot_utils import *
-from sim_objs import MsgGen
+from rvs import Exp
 
-import simpy, heapq, queue, collections
+import simpy, heapq, queue, collections, random
 import numpy as np
 
 # *******************************  Msg  ****************************** #
@@ -22,15 +22,15 @@ class Msg(object):
 
 # ********************************  Intersection attack  ************************************ #
 """
- Observe a set of candidates for the target's true recipient at each vulnerability window of target
- and keep intersecting them until the true recipient is revealed.
+Observe a set of candidates for the target's true recipient at target's each attack window
+and keep intersecting them until the true recipient is revealed.
  
- Vulnerability window: The time interval between a message generated at the target
- and the time it reached its recipient.
- m: Min delivery time
- M: Max delivery time
+Attack window: The time interval between a message generated at the target
+and the time it reached its recipient.
+m: Min delivery time
+M: Max delivery time
 """
-class VulnerabilityWindow(object):
+class AttackWindow(object):
   def __init__(self, start_time, end_time):
     self.start_time = start_time
     self.end_time = end_time
@@ -54,14 +54,14 @@ class IntersectionAttack(object):
     self.delivered_msg_i = None
     self.wait = env.process(self.run() )
 
-    self.num_vulnerability_windows = 0
-    
+    self.num_attack_windows = 0
+  
   def __repr__(self):
     return 'IntersectionAttack[n= {}, m= {}, M= {}, target_i= {}]'.format(self.n, self.m, self.M, self.target_i)
-
+  
   def state(self):
     return 'target_bin= {}, second_max_bin_height= {}'.format(self.bin_l[self.target_i], self.second_max_bin_height)
-
+  
   def is_complete(self):
     return self.bin_l[self.target_i] > self.second_max_bin_height
   
@@ -71,21 +71,21 @@ class IntersectionAttack(object):
       if self.bin_l[i] == self.bin_l[self.target_i]:
         l.append(i)
     return l
-
+  
   def msg_generated(self, i):
     slog(DEBUG, self.env, self, "a message originated at id", i)
     if i == self.target_i:
       t = self.env.now
-      self.window_q.appendleft(VulnerabilityWindow(t + self.m, t + self.M) )
+      self.window_q.appendleft(AttackWindow(t + self.m, t + self.M) )
       if self.new_window_event is not None:
         self.new_window_event.succeed()
-
+  
   def msg_delivered(self, i):
     slog(DEBUG, self.env, self, "a message is delivered at id", i)
     if self.msg_delivered_event is not None:
       self.delivered_msg_i = i
       self.msg_delivered_event.succeed()
-      
+  
   def run(self):
     while 1:
       if len(self.window_q) == 0:
@@ -116,85 +116,79 @@ class IntersectionAttack(object):
         if i != self.target_i:
           if self.bin_l[i] > self.second_max_bin_height:
             self.second_max_bin_height = self.bin_l[i]
-
-      self.num_vulnerability_windows += 1
+      
+      self.num_attack_windows += 1
       if self.is_complete():
         break
 
-# *************************************  Time Mix  ****************************************** #
-# Each received message is held in the mix for a random amount of time T \in [d, D].
-class TimeMix():
-  def __init__(self, env, _id, n, T, out=None, adversary=None):
+# ****************************  Single Target Many Receivers  *************************** #
+"""
+gen_rate: Rate at which messages are generated at the Target
+Delta: Length of the attack window
+n: Number of receivers
+recv_rate: Rate at which receivers receives messages
+"""
+class SingleTargetNReceivers():
+  def __init__(self, env, _id, gen_rate, Delta, n, recv_rate, adversary):
     self.env = env
     self._id = _id
+    self.gen_rate = gen_rate
+    self.Delta = Delta
     self.n = n
-    self.T = T
-    self.out = out
+    self.recv_rate = recv_rate
     self.adversary = adversary
 
-    self.q = [] # min-heap w.r.t. message delivery times
-
-    self.adversary_q = simpy.Store(env)
-    self.wait_for_attack = env.process(self.run() )
-    self.msg_recved_event = None
+    self.msg_gen = env.process(self.run_msg_gen() )
+    self.wait_for_attack = env.process(self.run_msg_recv() )
+    
+    self.start_time = self.env.now
+    self.D = None
 
   def __repr__(self):
-    return "TimeMix[_id= {}, n= {}, T= {}]".format(self._id, self.n, self.T)
+    return "SingleTargetNReceivers[gen_rate= {}, Delta= {}, n= {}, recv_rate= {}]".format(self.gen_rate, self.Delta, self.n, self.recv_rate)
 
-  def put(self, m):
-    slog(DEBUG, self.env, self, "recved", m)
-    m.delivery_time = self.env.now + self.T.sample()
-    
-    heapq.heappush(self.q, m)
-
-    self.adversary.msg_generated(m.flow_id)
-    
-    if self.msg_recved_event is not None:
-      self.msg_recved_flag = True
-      self.msg_recved_event.succeed()
-    
-  def run(self):
+  def run_msg_gen(self):
+    inter_gen_rv = Exp(self.gen_rate)
+    counter = 0
     while 1:
-      if len(self.q) == 0:
-        self.msg_recved_event = self.env.event()
-        yield (self.msg_recved_event)
-        self.msg_recved_event = None
-        continue
+      yield self.env.timeout(inter_gen_rv.sample() )
+      counter += 1
+      m = Msg(_id=counter, flow_id=0)
       
-      t = self.q[0].delivery_time - self.env.now
-      self.msg_recved_event = self.env.event()
-      yield (self.msg_recved_event | self.env.timeout(t))
+      slog(DEBUG, self.env, self, "generated", m)
+      self.adversary.msg_generated(m.flow_id)
       
-      if self.msg_recved_flag:
-        self.msg_recved_flag = False
-        self.msg_recved_event = None
-        continue
+      slog(DEBUG, self.env, self, "received", m)
+      self.adversary.msg_delivered(m.flow_id)
+  
+  def run_msg_recv(self):
+    inter_recv_rv = Exp(self.recv_rate*(self.n - 1))
+    counter = 0
+    while 1:
+      yield self.env.timeout(inter_recv_rv.sample() )
+      counter += 1
+      m = Msg(_id=counter, flow_id=random.randint(1, self.n-1) )
       
-      m_out = heapq.heappop(self.q)
-      if self.out is not None:
-        self.out.put(m_out)
-
-      if self.adversary is not None:
-        self.adversary.msg_delivered(m_out.flow_id)
-
-        if self.adversary.is_complete():
-          slog(DEBUG, self.env, self, "is complete", self.adversary)
-          break
-
-def sim_N_TimeMix(n, T):
+      slog(DEBUG, self.env, self, "received", m)
+      self.adversary.msg_delivered(m.flow_id)
+      
+      if self.adversary.is_complete():
+        slog(DEBUG, self.env, self, "is complete", self.adversary)
+        self.D = self.env.now - self.start_time
+        break
+  
+def sim_N_D_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate):
   env = simpy.Environment()
-  adv = IntersectionAttack(env, n, T.m, T.M, target_i=0)
-  mix = TimeMix(env, 'tm', n, T, out=None, adversary=adv)
-  ar = 1
-  mg = MsgGen(env, 'mg', ar*n, n, out=mix,
-              generator=lambda _id, flow_id: Msg(_id, flow_id) )
-  env.run(until=mix.wait_for_attack)
-  return adv.num_vulnerability_windows
+  adv = IntersectionAttack(env, n, 0, Delta, target_i=0)
+  stmr = SingleTargetNReceivers(env, 'stmr', gen_rate, Delta, n, recv_rate, adv)
+  env.run(until=stmr.wait_for_attack)
+  return adv.num_attack_windows, stmr.D
 
-def sim_EN_TimeMix(n, T, num_sim_runs=1000):
-  N_total = 0
+def sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, num_sim_runs=1000):
+  N_total, D_total = 0, 0
   for _ in range(num_sim_runs):
-    N = sim_N_TimeMix(n, T)
+    N, D = sim_N_D_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate)
     # log(INFO, "N= {}".format(N) )
     N_total += N
-  return N_total/num_sim_runs
+    D_total += D
+  return N_total/num_sim_runs, D_total/num_sim_runs
