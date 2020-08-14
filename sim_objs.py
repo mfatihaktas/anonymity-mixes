@@ -5,14 +5,14 @@ from log_utils import *
 
 # *******************************  Msg  ****************************** #
 class Msg(object):
-  def __init__(self, _id, flow_id):
+  def __init__(self, _id, flowId):
     self._id = _id
-    self.flow_id = flow_id
+    self.flowId = flowId
 
-    self.entrance_time = None
+    self.entranceTime = None
 
   def __repr__(self):
-    return 'Msg[_id= {}, flow_id= {}]'.format(self._id, self.flow_id)
+    return 'Msg[_id= {}, flowId= {}]'.format(self._id, self.flowId)
 
 # *************************************  MsgGen  ********************************* #
 class MsgGen(object):
@@ -38,9 +38,9 @@ class MsgGen(object):
       self.counter += 1
       
       if self.generator is None:
-        m = Msg(_id=self.counter, flow_id=random.randint(0, self.nflows-1) )
+        m = Msg(_id=self.counter, flowId=random.randint(0, self.nflows-1) )
       else:
-        m = self.generator(_id=self.counter, flow_id=random.randint(0, self.nflows-1) )
+        m = self.generator(_id=self.counter, flowId=random.randint(0, self.nflows-1) )
       self.out.put(m)
 
 # *****************************************  Q  ************************************* #

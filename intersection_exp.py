@@ -60,7 +60,7 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
       print("ED= {}".format(ED_))
       ED_l.append(ED_)
       
-      _, ED_sim_wConstantMixer = sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, V=Constant(0.95), num_sim_runs=1000)
+      _, ED_sim_wConstantMixer = 0, 0 # sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, V=Constant(0.95), num_sim_runs=1000)
       print("ED_sim_wConstantMixer= {}".format(ED_sim_wConstantMixer) )
       ED_sim_wConstantMixer_l.append(ED_sim_wConstantMixer)
       
@@ -71,7 +71,7 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
     plot.yscale('log')
 
   # for n in range(10, 40, 10):
-  plot_(n=100)
+  plot_(n=10)
   # for n in [10, 100, 1000, 10000]:
   #   plot_(n)
   
