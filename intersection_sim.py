@@ -1,5 +1,6 @@
 from log_utils import *
 from plot_utils import *
+from sim_objs import MsgGen, FCFS_wZeroDelayStartForBusyPeriod
 from rvs import Exp
 
 import simpy, heapq, queue, collections, random
@@ -13,14 +14,31 @@ class Msg(object):
 
     self.entrance_time = None
     self.delivery_time = None
+    self.serv_time = None
 
   def __repr__(self):
     return 'Msg[_id= {}, flow_id= {}]'.format(self._id, self.flow_id)
-
+  
   def __lt__(self, other):
     return self.delivery_time < other.delivery_time
 
-# ********************************  Intersection attack  ************************************ #
+# *****************************  Traffic Mixer  ******************************** #
+class TrafficMixer(object):
+  def __init__(self, env, _id, n, V, out):
+    self.env = env
+    self._id = _id
+    self.n = n
+    
+    self.q_l = [FCFS_wZeroDelayStartForBusyPeriod(i, env, V, out) for i in range(self.n) ]
+  
+  def __repr__(self):
+    return 'TrafficMixer[_id={}, n= {}, V= {}]'.format(self._id, self.n, self.V)
+  
+  def put(self, m):
+    slog(DEBUG, self.env, self, "recved", m)
+    self.q_l[m.flow_id].put(m)
+
+# ****************************  Intersection attack  ****************************** #
 """
 Observe a set of candidates for the target's true recipient at target's each attack window
 and keep intersecting them until the true recipient is revealed.
@@ -55,6 +73,8 @@ class IntersectionAttack(object):
     self.wait = env.process(self.run() )
 
     self.num_attack_windows = 0
+    self.start_time = self.env.now
+    self.D = None
   
   def __repr__(self):
     return 'IntersectionAttack[n= {}, m= {}, M= {}, target_i= {}]'.format(self.n, self.m, self.M, self.target_i)
@@ -76,6 +96,7 @@ class IntersectionAttack(object):
     slog(DEBUG, self.env, self, "a message originated at id", i)
     if i == self.target_i:
       t = self.env.now
+      # if len(self.window_q) == 0:
       self.window_q.appendleft(AttackWindow(t + self.m, t + self.M) )
       if self.new_window_event is not None:
         self.new_window_event.succeed()
@@ -119,6 +140,7 @@ class IntersectionAttack(object):
       
       self.num_attack_windows += 1
       if self.is_complete():
+        self.D = self.env.now - self.start_time
         break
 
 # ****************************  Single Target Many Receivers  *************************** #
@@ -140,9 +162,6 @@ class SingleTargetNReceivers():
 
     self.msg_gen = env.process(self.run_msg_gen() )
     self.wait_for_attack = env.process(self.run_msg_recv() )
-    
-    self.start_time = self.env.now
-    self.D = None
 
   def __repr__(self):
     return "SingleTargetNReceivers[gen_rate= {}, Delta= {}, n= {}, recv_rate= {}]".format(self.gen_rate, self.Delta, self.n, self.recv_rate)
@@ -157,7 +176,8 @@ class SingleTargetNReceivers():
       
       slog(DEBUG, self.env, self, "generated", m)
       self.adversary.msg_generated(m.flow_id)
-      
+
+      yield (self.env.timeout(0.00000001)) # give the control to IntersectionAttack
       slog(DEBUG, self.env, self, "received", m)
       self.adversary.msg_delivered(m.flow_id)
   
@@ -176,18 +196,28 @@ class SingleTargetNReceivers():
         slog(DEBUG, self.env, self, "is complete", self.adversary)
         self.D = self.env.now - self.start_time
         break
+    
+  def put(self, m):
+    slog(DEBUG, self.env, self, "received", m)
+    self.adversary.msg_delivered(m.flow_id + 1)
   
-def sim_N_D_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate):
+def sim_N_D_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, V=None):
   env = simpy.Environment()
   adv = IntersectionAttack(env, n, 0, Delta, target_i=0)
   stmr = SingleTargetNReceivers(env, 'stmr', gen_rate, Delta, n, recv_rate, adv)
-  env.run(until=stmr.wait_for_attack)
-  return adv.num_attack_windows, stmr.D
+  # msg_gen_out = stmr
+  # if V is not None:
+  #   tm = TrafficMixer(env, 'tm', n-1, V, out=stmr)
+  #   msg_gen_out = tm
+  # mg = MsgGen(env, 'mg', gen_rate*(n-1), n-1, out=msg_gen_out,
+  #             generator=lambda _id, flow_id: Msg(_id, flow_id) )
+  env.run(until=adv.wait)
+  return adv.num_attack_windows, adv.D
 
-def sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, num_sim_runs=1000):
+def sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, V=None, num_sim_runs=1000):
   N_total, D_total = 0, 0
   for _ in range(num_sim_runs):
-    N, D = sim_N_D_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate)
+    N, D = sim_N_D_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, V)
     # log(INFO, "N= {}".format(N) )
     N_total += N
     D_total += D

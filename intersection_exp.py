@@ -10,27 +10,28 @@ def plot_EN_vs_Delta_SingleTargetNReceivers():
     log(INFO, ">> n= {}".format(n) )
     Delta_l = []
     EN_sim_l, EN_l = [], []
-    for Delta in np.linspace(1, 3, 5):
-      print("\n** Delta= {}".format(Delta) )
+    # for Delta in np.linspace(1, 10, 10):
+    for Delta in np.linspace(1, 3, 4):
+      print("\n**n= {}, Delta= {}".format(n, Delta) )
       Delta_l.append(Delta)
 
       EN_sim, _ = sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, num_sim_runs=1000)
       print("EN_sim= {}".format(EN_sim))
       EN_sim_l.append(EN_sim)
 
-      # ar = 1
-      # EN_IndWin = EN_IndependentWindows(n, ar, T)
-      # print("EN_IndWin= {}".format(EN_IndWin))
-      # EN_IndWin_l.append(EN_IndWin)
+      EN_ = EN(gen_rate, Delta, n, recv_rate)
+      print("EN= {}".format(EN_))
+      EN_l.append(EN_)
 
     c = next(darkcolor_c)
-    plot.plot(Delta_l, EN_sim_l, label=r'Sim, $n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
-    # plot.plot(Delta_l, EN_IndWin_l, label=r'Ind-Win, $n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
-    # plot.yscale('log')
+    # plot.plot(Delta_l, EN_sim_l, label=r'Sim, $n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
+    plot.plot(Delta_l, EN_l, label=r'$n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='--')
+    plot.yscale('log')
 
-  # for n in range(10, 40, 10):
-  for n in [10]:
-    plot_(n)
+  plot_(n=10)
+  # for n in range(10, 50, 10):
+  # for n in [10, 100, 1000, 10000]:
+  #   plot_(n)
   
   plot.legend()
   plot.xlabel(r'$\Delta$', fontsize=14)
@@ -46,7 +47,8 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
     log(INFO, ">> n= {}".format(n) )
     Delta_l = []
     ED_sim_l, ED_l = [], []
-    for Delta in np.linspace(1, 3, 5):
+    ED_sim_wConstantMixer_l = []
+    for Delta in np.linspace(0.5, 5, 10):
       print("\n** Delta= {}".format(Delta) )
       Delta_l.append(Delta)
 
@@ -54,17 +56,24 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
       print("ED_sim= {}".format(ED_sim))
       ED_sim_l.append(ED_sim)
 
-      # ED_IndWin = ED_IndependentWindows(n, ar, T)
-      # print("ED_IndWin= {}".format(ED_IndWin))
-      # ED_IndWin_l.append(ED_IndWin)
+      ED_ = ED(gen_rate, Delta, n, recv_rate)
+      print("ED= {}".format(ED_))
+      ED_l.append(ED_)
+      
+      _, ED_sim_wConstantMixer = sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, V=Constant(0.95), num_sim_runs=1000)
+      print("ED_sim_wConstantMixer= {}".format(ED_sim_wConstantMixer) )
+      ED_sim_wConstantMixer_l.append(ED_sim_wConstantMixer)
+      
     c = next(darkcolor_c)
-    plot.plot(Delta_l, ED_sim_l, label=r'Sim, $n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
-    # plot.plot(Delta_l, ED_IndWin_l, label=r'Ind-Win, $n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
-    # plot.yscale('log')
+    # plot.plot(Delta_l, ED_sim_l, label=r'Sim, $n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
+    plot.plot(Delta_l, ED_l, label=r'$n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
+    plot.plot(Delta_l, ED_sim_wConstantMixer_l, label=r'Sim-wConstantMixer, $n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
+    plot.yscale('log')
 
   # for n in range(10, 40, 10):
-  for n in [10]:
-    plot_(n)
+  plot_(n=100)
+  # for n in [10, 100, 1000, 10000]:
+  #   plot_(n)
   
   plot.legend()
   plot.xlabel(r'$\Delta$', fontsize=14)
@@ -75,8 +84,8 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
   log(WARNING, "done.")
 
 if __name__ == "__main__":
-  plot_EN_vs_Delta_SingleTargetNReceivers()
-  # plot_ED_vs_Delta_SingleTargetNReceivers()
+  # plot_EN_vs_Delta_SingleTargetNReceivers()
+  plot_ED_vs_Delta_SingleTargetNReceivers()
   
   # n = 10
   # T = TPareto(0.1, 5, 2)

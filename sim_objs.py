@@ -66,7 +66,7 @@ class QMonitor(object):
 
       self.pollt_l.append(self.env.now)
       self.qlength_l.append(self.q.length() )
-
+      
 # **************************************  Slave Q  ********************************** #
 class SlaveQ(Q): # Release HoL at command
   def __init__(self, _id, env, out=None):
@@ -146,3 +146,57 @@ class Mix(object):
     n_released = sum([q.n_released for _, q in enumerate(self.i_q_l) ] )
     return n_released/(self.env.now - self.start_time)
 
+# *************************  First Come First Served  ********************** #
+class FCFS(): # First Come First Served
+  def __init__(self, _id, env, V, out=None):
+    self._id = _id
+    self.env = env
+    self.V = V # service time r.v.
+    self.out = out
+    
+    self.q = simpy.Store(env)
+    self.run_process = env.process(self.run() )
+  
+  def __repr__(self):
+    return "FCFS[_id= {}, V= {}]".format(self._id, self.V)
+
+  def put(self, m):
+    slog(DEBUG, self.env, self, "recved", m)
+    self.q.put(m)
+  
+  def run(self):
+    while 1:
+      m = yield (self.q.get())
+      t = self.V.sample()
+      slog(DEBUG, self.env, self, "will serv for t= {}".format(t), m)
+      yield self.env.timeout(t)
+      
+      if self.out is not None:
+        self.out.put(m)  
+
+class FCFS_wZeroDelayStartForBusyPeriod(FCFS): # First Come First Served
+  def __init__(self, _id, env, V, out=None):
+    super().__init__(_id, env, V, out)
+    
+    self.run_process = env.process(self.run() )
+  
+  def __repr__(self):
+    return "FCFS_wZeroDelayStartForBusyPeriod[_id= {}, V= {}]".format(self._id, self.V)
+
+  def put(self, m):
+    slog(DEBUG, self.env, self, "recved", m)
+    if len(self.q.items) == 0:
+      m.serv_time = 0
+    else:
+      m.serv_time = self.V.sample()
+    self.q.put(m)
+  
+  def run(self):
+    while 1:
+      m = yield (self.q.get())
+      t = m.serv_time
+      slog(DEBUG, self.env, self, "will serv for t= {}".format(t), m)
+      yield self.env.timeout(t)
+      
+      if self.out is not None:
+        self.out.put(m)  
