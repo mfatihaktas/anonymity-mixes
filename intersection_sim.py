@@ -1,7 +1,7 @@
 from log_utils import *
 from plot_utils import *
-from sim_objs import Msg, MsgGen, FCFS_wZeroDelayStartForBusyPeriod
-from rvs import Exp, RV_wValsWeights
+from sim_objs import Msg, MsgGen, FCFS, FCFS_wZeroDelayStartForBusyPeriod, FCFS_wMaxDelay
+from rvs import Exp, RV_wValsWeights, Constant
 
 import simpy, heapq, queue, collections, random
 import numpy as np
@@ -12,6 +12,10 @@ class Msg_wTarget(Msg):
     super().__init__(_id, flowId)
     self.target = target
 
+    self.entrance_time = None
+
+  def __repr__(self):
+    return 'Msg[_id= {}, flowId= {}, target= {}]'.format(self._id, self.flowId, self.target)
 # ********************************  Msg gen  *********************************** #
 class MsgGen_wTarget(object):
   def __init__(self, env, _id, genRate_l, targetPercRate, out):
@@ -40,12 +44,10 @@ class MsgGen_wTarget(object):
         isTarget = True
         
       m = Msg_wTarget(counter, flowId, isTarget)
-      self.out.msg_generated(m)
-      yield self.env.timeout(0.000001)
-      self.out.msg_delivered(m)
+      self.out.put(m)
 
-# *****************************  Traffic Mixer  ******************************** #
-class TrafficMixer(object):
+# *************  Traffic Mixer w/ FCFS w/ ZeroDelayStartForBusyPeriod  ************ #
+class TrafficMixer_wFCFS_wZeroDelayStartForBusyPeriod(object):
   def __init__(self, env, _id, n, V, out):
     self.env = env
     self._id = _id
@@ -54,11 +56,37 @@ class TrafficMixer(object):
     self.q_l = [FCFS_wZeroDelayStartForBusyPeriod(i, env, V, out) for i in range(self.n) ]
   
   def __repr__(self):
-    return 'TrafficMixer[_id={}, n= {}, V= {}]'.format(self._id, self.n, self.V)
+    return 'TrafficMixer_wFCFS_wZeroDelayStartForBusyPeriod[_id={}, n= {}, V= {}]'.format(self._id, self.n, self.V)
   
   def put(self, m):
     slog(DEBUG, self.env, self, "recved", m)
     self.q_l[m.flowId].put(m)
+
+# ****************************  Traffic Mixer w/ Batch  *************************** #
+class TrafficMixer_wMaxDelay(object):
+  def __init__(self, env, _id, n, maxDelay, Delta, out):
+    self.env = env
+    self._id = _id
+    self.n = n
+    self.maxDelay = maxDelay
+    self.Delta = Delta
+    self.out = out
+    
+    self.q_l = \
+      [FCFS('fcfs_wzerodelay', env, Constant(0), out) ] + \
+      [FCFS_wMaxDelay('fcfs_wmaxdelay_{}'.format(i), env, maxDelay, out) for i in range(1, self.n) ]
+  
+  def __repr__(self):
+    return 'TrafficMixer_wMaxDelay[_id={}, n= {}, maxDelay= {}]'.format(self._id, self.n, self.maxDelay)
+  
+  def put(self, m):
+    slog(DEBUG, self.env, self, "recved", m)
+    self.out.put(m)
+    self.q_l[m.flowId].put(m)
+    
+    if m.target:
+      for i in range(1, self.n):
+        self.q_l[i].release_by(self.env.now + self.Delta)
 
 # ****************************  Intersection attack  ****************************** #
 """
@@ -84,7 +112,7 @@ class IntersectionAttack(object):
     self.m = m
     self.M = M
     self.target_i = target_i
-
+    
     self.bin_l = [0 for _ in range(n)]
     self.second_max_bin_height = 0 # target_bin will always have the max height
 
@@ -97,6 +125,11 @@ class IntersectionAttack(object):
     self.numAttackWindows = 0
     self.start_time = self.env.now
     self.D = None
+
+    self.deliveredMsgQ = simpy.Store(env)
+    self.action_deliveredMsgQ = self.env.process(self.run_deliveredMsgQ() )
+    
+    self.wait = self.env.process(self.run() )
   
   def __repr__(self):
     return 'IntersectionAttack[n= {}, m= {}, M= {}, target_i= {}]'.format(self.n, self.m, self.M, self.target_i)
@@ -108,6 +141,7 @@ class IntersectionAttack(object):
     return 'target_bin= {}, second_max_bin_height= {}'.format(self.bin_l[self.target_i], self.second_max_bin_height)
   
   def is_complete(self):
+    # log(INFO, "state= {}".format(self.state() ) )
     return self.bin_l[self.target_i] > self.second_max_bin_height
   
   def get_candidate_l(self):
@@ -118,7 +152,7 @@ class IntersectionAttack(object):
     return l
   
   def msg_generated(self, m):
-    slog(DEBUG, self.env, self, "originated", m)
+    slog(DEBUG, self.env, self, "generated", m)
     if m.target:
       t = self.env.now
       # if len(self.window_q) == 0:
@@ -128,9 +162,16 @@ class IntersectionAttack(object):
   
   def msg_delivered(self, m):
     slog(DEBUG, self.env, self, "delivered", m)
-    if self.msg_delivered_event is not None:
-      self.delivered_msg_i = m.flowId
-      self.msg_delivered_event.succeed()
+    self.deliveredMsgQ.put(m)
+  
+  def run_deliveredMsgQ(self):
+    while 1:
+      m = yield (self.deliveredMsgQ.get())
+      
+      if self.msg_delivered_event is not None:
+        self.delivered_msg_i = m.flowId
+        self.msg_delivered_event.succeed()
+        yield self.env.timeout(0.00000001)
   
   def run(self):
     while 1:
@@ -184,35 +225,39 @@ class SingleTargetNReceivers():
     self.n = n
     self.recv_rate = recv_rate
     self.adversary = adversary
+
+    # self.action = self.env.process(self.run() )
   
   def __repr__(self):
     return "SingleTargetNReceivers[gen_rate= {}, Delta= {}, n= {}, recv_rate= {}]".format(self.gen_rate, self.Delta, self.n, self.recv_rate)
   
-  def msg_generated(self, m):
-    slog(DEBUG, self.env, self, "generated", m)
-    self.adversary.msg_generated(m)
-  
-  def msg_delivered(self, m):
-    slog(DEBUG, self.env, self, "delivered", m)
+  def put(self, m):
+    slog(INFO, self.env, self, "recved", m)
+
+    if m.target:
+      self.adversary.msg_generated(m)
     self.adversary.msg_delivered(m)
 
-def sim_N_D_SingleTargetNReceivers(targetRate, Delta, n, recvRate, V=None):
+def sim_N_D_SingleTargetNReceivers(targetRate, Delta, n, recvRate, trafficMixer_m=None):
   env = simpy.Environment()
   adv = IntersectionAttack(env, n, 0, Delta, target_i=0)
   stmr = SingleTargetNReceivers(env, 'stmr', targetRate, Delta, n, recvRate, adv)
   msgGenOut = stmr
-  if V is not None:
-    tm = TrafficMixer(env, 'tm', n, V, out=stmr)
+  if trafficMixer_m is not None:
+    if trafficMixer_m['type'] == 'wFCFS_wZeroDelayStartForBusyPeriod':
+      tm = TrafficMixer_wFCFS_wZeroDelayStartForBusyPeriod(env, 'tm', n, trafficMixer_m['V'], out=stmr)
+    elif trafficMixer_m['type'] == 'wMaxDelay':
+      tm = TrafficMixer_wMaxDelay(env, 'tm', n, trafficMixer_m['maxDelay'], Delta, out=stmr)
     msgGenOut = tm
   mg = MsgGen_wTarget(env, 'mg', [recvRate]*n, targetPercRate=targetRate/recvRate, out=msgGenOut)
-  adv.start()
+  # adv.start()
   env.run(until=adv.wait)
   return adv.numAttackWindows, adv.D
 
-def sim_EN_ED_SingleTargetNReceivers(targetRate, Delta, n, recvRate, V=None, num_sim_runs=1000):
+def sim_EN_ED_SingleTargetNReceivers(targetRate, Delta, n, recvRate, trafficMixer_m=None, num_sim_runs=1000):
   N_total, D_total = 0, 0
   for _ in range(num_sim_runs):
-    N, D = sim_N_D_SingleTargetNReceivers(targetRate, Delta, n, recvRate, V)
+    N, D = sim_N_D_SingleTargetNReceivers(targetRate, Delta, n, recvRate, trafficMixer_m)
     # log(INFO, "N= {}".format(N) )
     N_total += N
     D_total += D

@@ -46,28 +46,43 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
   def plot_(n):
     log(INFO, ">> n= {}".format(n) )
     Delta_l = []
-    ED_sim_l, ED_l = [], []
-    ED_sim_wConstantMixer_l = []
+    ED_sim_l, ED_l, ED_UB_l = [], [], []
+    ED_sim_wMixerWFCFS_l, ED_sim_wMixerWMaxDelay_l = [], []
     for Delta in np.linspace(0.5, 5, 10):
       print("\n** Delta= {}".format(Delta) )
       Delta_l.append(Delta)
 
-      _, ED_sim = sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, num_sim_runs=1000)
-      print("ED_sim= {}".format(ED_sim))
-      ED_sim_l.append(ED_sim)
+      # _, ED_sim = sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, num_sim_runs=1000)
+      # print("ED_sim= {}".format(ED_sim))
+      # ED_sim_l.append(ED_sim)
 
       ED_ = ED(gen_rate, Delta, n, recv_rate)
-      print("ED= {}".format(ED_))
+      print("ED= {}".format(ED_) )
       ED_l.append(ED_)
+
+      # ED_UB_ = ED_UB(gen_rate, Delta, n, recv_rate)
+      # print("ED_UB= {}".format(ED_UB_) )
+      # ED_UB_l.append(ED_UB_)
       
-      _, ED_sim_wConstantMixer = 0, 0 # sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, V=Constant(0.95), num_sim_runs=1000)
-      print("ED_sim_wConstantMixer= {}".format(ED_sim_wConstantMixer) )
-      ED_sim_wConstantMixer_l.append(ED_sim_wConstantMixer)
+      # _, ED_sim_wMixerWFCFS = \
+      #   sim_EN_ED_SingleTargetNReceivers(
+      #     gen_rate, Delta, n, recv_rate,
+      #     trafficMixer_m={'type': 'wFCFS_wZeroDelayStartForBusyPeriod', 'V': Constant(0.95)}, num_sim_runs=1000)
+      # print("ED_sim_wMixerWFCFS= {}".format(ED_sim_wMixerWFCFS) )
+      # ED_sim_wMixerWFCFS_l.append(ED_sim_wMixerWFCFS)
       
+      _, ED_sim_wMixerWMaxDelay = \
+        sim_EN_ED_SingleTargetNReceivers(
+          gen_rate, Delta, n, recv_rate,
+          trafficMixer_m={'type': 'wMaxDelay', 'maxDelay': 1}, num_sim_runs=1000)
+      print("ED_sim_wMixerWMaxDelay= {}".format(ED_sim_wMixerWMaxDelay) )
+      ED_sim_wMixerWMaxDelay_l.append(ED_sim_wMixerWMaxDelay)
+    
     c = next(darkcolor_c)
     # plot.plot(Delta_l, ED_sim_l, label=r'Sim, $n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
-    plot.plot(Delta_l, ED_l, label=r'$n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
-    plot.plot(Delta_l, ED_sim_wConstantMixer_l, label=r'Sim-wConstantMixer, $n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
+    plot.plot(Delta_l, ED_l, label=r'$n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle=':')
+    # plot.plot(Delta_l, ED_UB_l, label=r'Upper-Bound, $n= {}$'.format(n), color=c, marker='^', mew=mew, ms=ms, linestyle='--')
+    # plot.plot(Delta_l, ED_sim_wConstantMixer_l, label=r'Sim-wConstantMixer, $n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
     plot.yscale('log')
 
   # for n in range(10, 40, 10):

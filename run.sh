@@ -12,6 +12,8 @@ elif [ $1 = 'im' ]; then
   $PYTHON intersection_model.py
 elif [ $1 = 'ie' ]; then
   $PYTHON intersection_exp.py
+elif [ $1 = 'die' ]; then
+  $PYTHON -m pdb intersection_exp.py
 elif [ $1 = 'r' ]; then
   $PYTHON randmix_model.py
 else

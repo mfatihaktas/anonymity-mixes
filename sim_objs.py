@@ -174,7 +174,7 @@ class FCFS(): # First Come First Served
       if self.out is not None:
         self.out.put(m)  
 
-class FCFS_wZeroDelayStartForBusyPeriod(FCFS): # First Come First Served
+class FCFS_wZeroDelayStartForBusyPeriod(FCFS):
   def __init__(self, _id, env, V, out=None):
     super().__init__(_id, env, V, out)
     
@@ -199,4 +199,55 @@ class FCFS_wZeroDelayStartForBusyPeriod(FCFS): # First Come First Served
       yield self.env.timeout(t)
       
       if self.out is not None:
-        self.out.put(m)  
+        self.out.put(m)
+
+class FCFS_wMaxDelay(FCFS):
+  def __init__(self, _id, env, maxDelay, out=None):
+    super().__init__(_id, env, 0, out)
+    self.maxDelay = maxDelay
+    
+    self.releaseByTimeEvent = None
+    self.releaseByTime = None
+
+    self.run_process = env.process(self.run() )
+  
+  def __repr__(self):
+    return "FCFS_wMaxDelay[_id= {}, maxDelay= {}]".format(self._id, self.maxDelay)
+  
+  def put(self, m):
+    slog(DEBUG, self.env, self, "recved", m)
+    m.entrance_time = self.env.now
+    self.q.put(m)
+  
+  def release_by(self, t):
+    slog(DEBUG, self.env, self, "release_by", t)
+    if self.releaseByTimeEvent is not None:
+      self.releaseByTime = t
+      slog(DEBUG, self.env, self, "will releaseByTimeEvent.succeed()", self.releaseByTime)
+      self.releaseByTimeEvent.succeed()
+  
+  def run(self):
+    while 1:
+      m = yield (self.q.get())
+      timeInQ = self.env.now - m.entrance_time
+      if timeInQ > self.maxDelay:
+        slog(ERROR, self.env, self, "timeInQ= {} > maxDelay= {}".format(timeInQ, self.maxDelay), None)
+        break
+      
+      self.releaseByTimeEvent = self.env.event()
+      t = self.maxDelay - timeInQ
+      slog(DEBUG, self.env, self, "will wait for t= {}".format(t), m)
+      yield (self.releaseByTimeEvent | self.env.timeout(t) )
+      self.releaseByTimeEvent = None
+      if self.releaseByTime is not None:
+        slog(DEBUG, self.env, self, "wait stopped by releaseByTimeEvent", m)
+        timeInQ = self.env.now - m.entrance_time
+        t = min(self.maxDelay - timeInQ, self.releaseByTime - self.env.now)
+        # log(INFO, "self.maxDelay - timeInQ= {}, self.releaseByTime - self.env.now= {}".format(self.maxDelay - timeInQ, self.releaseByTime - self.env.now) )
+        self.releaseByTime = None
+        slog(DEBUG, self.env, self, "after release_by; will wait for t= {}".format(t), m)
+        yield self.env.timeout(t)
+      
+      if self.out is not None:
+        # slog(WARNING, self.env, self, "FCFS_wMaxDelay::run: will put(m) on out= {}".format(self.out), m)
+        self.out.put(m)
