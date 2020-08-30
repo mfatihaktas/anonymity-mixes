@@ -62,7 +62,7 @@ class TrafficMixer_wFCFS_wZeroDelayStartForBusyPeriod(object):
     slog(DEBUG, self.env, self, "recved", m)
     self.q_l[m.flowId].put(m)
 
-# ****************************  Traffic Mixer w/ Batch  *************************** #
+# ****************************  Traffic Mixer w/ Max Delay  *************************** #
 class TrafficMixer_wMaxDelay(object):
   def __init__(self, env, _id, n, maxDelay, Delta, out):
     self.env = env

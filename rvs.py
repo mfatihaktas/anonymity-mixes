@@ -33,8 +33,12 @@ class Exp(RV):
 
   def cdf(self, x):
     if x <= self.m:
-      return 0
-    return 1 - math.exp(-self.mu*(x - self.D) )
+      r = 0.00000000001
+    else:
+      r = 1 - math.exp(-self.mu*(x - self.D) )
+    if r == 0:
+      r = 0.00000000001
+    return r
 
   def pdf(self, x):
     if x <= self.m:
@@ -59,6 +63,11 @@ class Exp(RV):
 
   def sample(self):
     return self.D + random.expovariate(self.mu)
+
+def Pr_X_eq_x_given_X_leq_y(X, x, y):
+  if x > y:
+    return 0
+  return X.pdf(x)/X.cdf(y)
 
 class Pareto(RV):
   def __init__(self, loc, a):
