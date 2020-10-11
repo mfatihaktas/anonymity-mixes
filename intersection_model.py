@@ -16,7 +16,7 @@ def EN_WhenNoWinStartsBeforeCurrentFinishes(lambda_, Delta, n, mu):
   log(INFO, "", Pr_RecipientReceivesAMsgInWindow=Pr_RecipientReceivesAMsgInWindow)
   
   zeta = -math.log(Pr_RecipientReceivesAMsgInWindow)
-  return H(n-1)/zeta + 1
+  return H(n-1)/zeta # + 1
 
 def EN(lambda_, Delta, n, mu):
   Pr_RecipientReceivesAMsgInWindow = 1 - math.exp(-mu*Delta)
@@ -69,7 +69,7 @@ def EN_whenNoWinStartsBeforeCurrentFinishes_wMixerWMaxDelay(lambda_, Delta, n, m
   log(INFO, "", Pr_recipientReceivesAMsgInWindow=Pr_recipientReceivesAMsgInWindow)
   
   zeta = -math.log(Pr_recipientReceivesAMsgInWindow)
-  return H(n-1)/zeta + 1
+  return H(n-1)/zeta # + 1
 
 def ED_wMixerWMaxDelay(lambda_, Delta, n, mu, maxDelay):
   EN_ = EN_whenNoWinStartsBeforeCurrentFinishes_wMixerWMaxDelay(lambda_, Delta, n, mu, maxDelay)
@@ -84,7 +84,7 @@ def ED_wMixerWMaxDelay(lambda_, Delta, n, mu, maxDelay):
     scipy.integrate.quad(func1, 0, Delta - maxDelay)[0] + \
     scipy.integrate.quad(func2, Delta - maxDelay, Delta)[0]
 
-  EW_receiverQIsBusyAtStartOfWindow = maxDelay/2
+  EW_receiverQIsBusyAtStartOfWindow = 0 # maxDelay # /2
   blog(ro=ro,
        EW_receiverQIsEmptyAtStartOfWindow=EW_receiverQIsEmptyAtStartOfWindow)
   

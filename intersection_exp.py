@@ -53,13 +53,13 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
       print("\n** Delta= {}".format(Delta) )
       Delta_l.append(Delta)
 
-      # _, ED_sim = sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, num_sim_runs=1000)
-      # print("ED_sim= {}".format(ED_sim))
-      # ED_sim_l.append(ED_sim)
-
       ED_ = ED(gen_rate, Delta, n, recv_rate)
       print("ED= {}".format(ED_) )
       ED_l.append(ED_)
+      
+      # _, ED_sim = sim_EN_ED_SingleTargetNReceivers(gen_rate, Delta, n, recv_rate, num_sim_runs=1000)
+      # print("ED_sim= {}".format(ED_sim))
+      # ED_sim_l.append(ED_sim)
 
       # ED_UB_ = ED_UB(gen_rate, Delta, n, recv_rate)
       # print("ED_UB= {}".format(ED_UB_) )
@@ -72,17 +72,17 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
       # print("ED_sim_wMixerWFCFS= {}".format(ED_sim_wMixerWFCFS) )
       # ED_sim_wMixerWFCFS_l.append(ED_sim_wMixerWFCFS)
 
-      maxDelay = 0.5 # Delta/2
+      maxDelay = 0.4 # Delta/2
       ED_wMixerWMaxDelay_ = ED_wMixerWMaxDelay(gen_rate, Delta, n, recv_rate, maxDelay)
       print("ED_wMixerWMaxDelay= {}".format(ED_wMixerWMaxDelay_) )
       ED_wMixerWMaxDelay_l.append(ED_wMixerWMaxDelay_)
       
-      # _, ED_sim_wMixerWMaxDelay = \
-      #   sim_EN_ED_SingleTargetNReceivers(
-      #     gen_rate, Delta, n, recv_rate,
-      #     trafficMixer_m={'type': 'wMaxDelay', 'maxDelay': maxDelay}, num_sim_runs=1000)
-      # print("ED_sim_wMixerWMaxDelay= {}".format(ED_sim_wMixerWMaxDelay) )
-      # ED_sim_wMixerWMaxDelay_l.append(ED_sim_wMixerWMaxDelay)
+      _, ED_sim_wMixerWMaxDelay = \
+        sim_EN_ED_SingleTargetNReceivers(
+          gen_rate, Delta, n, recv_rate,
+          trafficMixer_m={'type': 'wMaxDelay', 'maxDelay': maxDelay}, num_sim_runs=1000)
+      print("ED_sim_wMixerWMaxDelay= {}".format(ED_sim_wMixerWMaxDelay) )
+      ED_sim_wMixerWMaxDelay_l.append(ED_sim_wMixerWMaxDelay)
     
     c = next(darkcolor_c)
     # plot.plot(Delta_l, ED_sim_l, label=r'Sim, $n= {}$'.format(n), color=c, marker=next(marker_c), mew=mew, ms=ms, linestyle=':')
@@ -91,13 +91,13 @@ def plot_ED_vs_Delta_SingleTargetNReceivers():
     # plot.plot(Delta_l, ED_sim_wMixerWFCFS_l, label=r'Sim-wMixerWFCFS, $n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
     # c = next(darkcolor_c)
     # plot.plot(Delta_l, ED_sim_wMixerWMaxDelay_l, label=r'Sim-wMixerWMaxDelay, $n= {}$'.format(n), color=c, marker='.', mew=mew, ms=ms, linestyle='-')
-    plot.plot(Delta_l, ED_wMixerWMaxDelay_l, label=r'wMixerWMaxDelay, $n= {}$'.format(n), color=c, marker='x', mew=mew, ms=ms, linestyle='-')
+    # plot.plot(Delta_l, ED_wMixerWMaxDelay_l, label=r'wMixerWMaxDelay, $n= {}$'.format(n), color=c, marker='x', mew=mew, ms=ms, linestyle='-')
     plot.yscale('log')
 
   # for n in range(10, 40, 10):
-  # plot_(n=10)
-  for n in [10, 100, 1000, 10000]:
-    plot_(n)
+  plot_(n=10)
+  # for n in [10, 100, 1000, 10000]:
+  #   plot_(n)
   
   plot.legend()
   plot.xlabel(r'$\Delta$', fontsize=14)

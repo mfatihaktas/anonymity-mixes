@@ -86,7 +86,8 @@ class TrafficMixer_wMaxDelay(object):
     
     if m.target:
       for i in range(1, self.n):
-        self.q_l[i].release_by(self.env.now + self.Delta)
+        # self.q_l[i].release_by(self.env.now + self.Delta)
+        self.q_l[i].start_control_window(self.env.now + self.Delta)
 
 # ****************************  Intersection attack  ****************************** #
 """

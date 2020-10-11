@@ -206,9 +206,9 @@ class FCFS_wMaxDelay(FCFS):
     super().__init__(_id, env, 0, out)
     self.maxDelay = maxDelay
     
-    self.releaseByTimeEvent = None
-    self.releaseByTime = None
-
+    # self.releaseByTimeEvent = None
+    # self.releaseByTime = None
+    self.controlWindowEndTime = None
     self.run_process = env.process(self.run() )
   
   def __repr__(self):
@@ -219,13 +219,18 @@ class FCFS_wMaxDelay(FCFS):
     m.entrance_time = self.env.now
     self.q.put(m)
   
-  def release_by(self, t):
-    slog(DEBUG, self.env, self, "release_by", t)
-    if self.releaseByTimeEvent is not None:
-      self.releaseByTime = t
-      slog(DEBUG, self.env, self, "will releaseByTimeEvent.succeed()", self.releaseByTime)
-      self.releaseByTimeEvent.succeed()
-  
+  # def release_by(self, t):
+  #   slog(DEBUG, self.env, self, "release_by", t)
+  #   if self.releaseByTimeEvent is not None:
+  #     self.releaseByTime = t
+  #     slog(DEBUG, self.env, self, "will releaseByTimeEvent.succeed()", self.releaseByTime)
+  #     self.releaseByTimeEvent.succeed()
+
+  def start_control_window(self, endTime):
+    slog(DEBUG, self.env, self, "start_control_window", endTime)
+    if self.controlWindowEndTime is None:
+      self.controlWindowEndTime = endTime
+    
   def run(self):
     while 1:
       m = yield (self.q.get())
@@ -234,20 +239,27 @@ class FCFS_wMaxDelay(FCFS):
         slog(ERROR, self.env, self, "timeInQ= {} > maxDelay= {}".format(timeInQ, self.maxDelay), None)
         break
       
-      self.releaseByTimeEvent = self.env.event()
+      # self.releaseByTimeEvent = self.env.event()
+      # t = self.maxDelay - timeInQ
+      # slog(DEBUG, self.env, self, "will wait for t= {}".format(t), m)
+      # yield (self.releaseByTimeEvent | self.env.timeout(t) )
+      # self.releaseByTimeEvent = None
+      # if self.releaseByTime is not None:
+      #   slog(DEBUG, self.env, self, "wait stopped by releaseByTimeEvent", m)
+      #   timeInQ = self.env.now - m.entrance_time
+      #   t = min(self.maxDelay - timeInQ, self.releaseByTime - self.env.now)
+      #   # log(INFO, "self.maxDelay - timeInQ= {}, self.releaseByTime - self.env.now= {}".format(self.maxDelay - timeInQ, self.releaseByTime - self.env.now) )
+      #   self.releaseByTime = None
+      #   slog(DEBUG, self.env, self, "after release_by; will wait for t= {}".format(t), m)
+      #   yield self.env.timeout(t)
+
       t = self.maxDelay - timeInQ
+      if self.controlWindowEndTime is not None:
+        if self.controlWindowEndTime - self.env.now > 0: # o.w. the connected recipient got already exposed
+          t = min(t, self.controlWindowEndTime - self.env.now)
       slog(DEBUG, self.env, self, "will wait for t= {}".format(t), m)
-      yield (self.releaseByTimeEvent | self.env.timeout(t) )
-      self.releaseByTimeEvent = None
-      if self.releaseByTime is not None:
-        slog(DEBUG, self.env, self, "wait stopped by releaseByTimeEvent", m)
-        timeInQ = self.env.now - m.entrance_time
-        t = min(self.maxDelay - timeInQ, self.releaseByTime - self.env.now)
-        # log(INFO, "self.maxDelay - timeInQ= {}, self.releaseByTime - self.env.now= {}".format(self.maxDelay - timeInQ, self.releaseByTime - self.env.now) )
-        self.releaseByTime = None
-        slog(DEBUG, self.env, self, "after release_by; will wait for t= {}".format(t), m)
-        yield self.env.timeout(t)
+      yield self.env.timeout(t)
+      self.controlWindowEndTime = None
       
       if self.out is not None:
-        # slog(WARNING, self.env, self, "FCFS_wMaxDelay::run: will put(m) on out= {}".format(self.out), m)
         self.out.put(m)
