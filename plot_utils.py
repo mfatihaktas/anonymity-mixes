@@ -5,7 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plot
 import itertools
 
-mew, ms = 3, 5
+mew, ms = 3, 4
 
 NICE_BLUE = '#66b3ff'
 NICE_RED = '#ff9999'
